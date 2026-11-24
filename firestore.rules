@@ -1,0 +1,289 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidUserProfile(data, userId) {
+      return data.keys().hasAll(['uid', 'displayName', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['uid', 'displayName', 'photoURL', 'createdAt', 'updatedAt'])
+        && data.uid is string
+        && data.uid.size() >= 1
+        && data.uid.size() <= 128
+        && data.uid == userId
+        && data.uid == request.auth.uid
+        && data.displayName is string
+        && data.displayName.size() >= 1
+        && data.displayName.size() <= 120
+        && (!('photoURL' in data) || (data.photoURL is string && data.photoURL.size() <= 500))
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidChatSession(data, userId) {
+      return data.keys().hasAll(['userId', 'title', 'model', 'messageCount', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['userId', 'title', 'model', 'systemPrompt', 'messageCount', 'createdAt', 'updatedAt'])
+        && data.userId is string
+        && data.userId.size() >= 1
+        && data.userId.size() <= 128
+        && data.userId == userId
+        && data.userId == request.auth.uid
+        && data.title is string
+        && data.title.size() >= 1
+        && data.title.size() <= 120
+        && data.model is string
+        && data.model.size() >= 1
+        && data.model.size() <= 64
+        && (!('systemPrompt' in data) || (data.systemPrompt is string && data.systemPrompt.size() <= 1000))
+        && data.messageCount is int
+        && data.messageCount >= 0
+        && data.messageCount <= 10000
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidChatMessage(data, userId, chatId) {
+      return data.keys().hasAll(['userId', 'chatId', 'role', 'content', 'model', 'createdAt'])
+        && data.keys().hasOnly(['userId', 'chatId', 'role', 'content', 'model', 'createdAt'])
+        && data.userId is string
+        && data.userId.size() >= 1
+        && data.userId.size() <= 128
+        && data.userId == userId
+        && data.userId == request.auth.uid
+        && data.chatId is string
+        && data.chatId.size() >= 1
+        && data.chatId.size() <= 128
+        && data.chatId == chatId
+        && data.role is string
+        && data.role.size() >= 1
+        && data.role.size() <= 16
+        && data.role in ['user', 'model']
+        && data.content is string
+        && data.content.size() >= 1
+        && data.content.size() <= 32000
+        && data.model is string
+        && data.model.size() >= 1
+        && data.model.size() <= 64
+        && data.createdAt is timestamp;
+    }
+
+    function isValidImageJob(data, userId) {
+      return data.keys().hasAll(['userId', 'prompt', 'model', 'aspectRatio', 'status', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['userId', 'prompt', 'model', 'aspectRatio', 'status', 'thumbnailDataUrl', 'errorMessage', 'createdAt', 'updatedAt'])
+        && data.userId is string
+        && data.userId.size() >= 1
+        && data.userId.size() <= 128
+        && data.userId == userId
+        && data.userId == request.auth.uid
+        && data.prompt is string
+        && data.prompt.size() >= 1
+        && data.prompt.size() <= 2000
+        && data.model is string
+        && data.model.size() >= 1
+        && data.model.size() <= 64
+        && data.aspectRatio is string
+        && data.aspectRatio.size() >= 1
+        && data.aspectRatio.size() <= 16
+        && data.status is string
+        && data.status.size() >= 1
+        && data.status.size() <= 20
+        && data.status in ['queued', 'processing', 'completed', 'failed']
+        && (!('thumbnailDataUrl' in data) || (data.thumbnailDataUrl is string && data.thumbnailDataUrl.size() <= 250000))
+        && (!('errorMessage' in data) || (data.errorMessage is string && data.errorMessage.size() <= 500))
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidDownloadJob(data, userId) {
+      return data.keys().hasAll(['userId', 'url', 'filename', 'mimeType', 'sizeBytes', 'status', 'createdAt'])
+        && data.keys().hasOnly(['userId', 'url', 'filename', 'mimeType', 'sizeBytes', 'status', 'createdAt'])
+        && data.userId is string
+        && data.userId.size() >= 1
+        && data.userId.size() <= 128
+        && data.userId == userId
+        && data.userId == request.auth.uid
+        && data.url is string
+        && data.url.size() >= 1
+        && data.url.size() <= 2000
+        && data.filename is string
+        && data.filename.size() >= 1
+        && data.filename.size() <= 255
+        && data.mimeType is string
+        && data.mimeType.size() >= 1
+        && data.mimeType.size() <= 120
+        && (data.sizeBytes is int || data.sizeBytes is float)
+        && data.sizeBytes >= 0
+        && data.status is string
+        && data.status.size() >= 1
+        && data.status.size() <= 20
+        && data.status in ['completed', 'failed', 'unsupported']
+        && data.createdAt is timestamp;
+    }
+
+    function isValidAnimeBookmark(data, userId) {
+      return data.keys().hasAll(['userId', 'animeId', 'title', 'format', 'createdAt'])
+        && data.keys().hasOnly(['userId', 'animeId', 'title', 'coverImage', 'format', 'episodes', 'score', 'createdAt'])
+        && data.userId is string
+        && data.userId.size() >= 1
+        && data.userId.size() <= 128
+        && data.userId == userId
+        && data.userId == request.auth.uid
+        && data.animeId is int
+        && data.animeId > 0
+        && data.title is string
+        && data.title.size() >= 1
+        && data.title.size() <= 255
+        && (!('coverImage' in data) || (data.coverImage is string && data.coverImage.size() <= 500))
+        && data.format is string
+        && data.format.size() >= 1
+        && data.format.size() <= 32
+        && (!('episodes' in data) || (data.episodes is int && data.episodes >= 0))
+        && (!('score' in data) || (data.score is int || data.score is float))
+        && data.createdAt is timestamp;
+    }
+
+    match /users/{userId} {
+      allow get: if isValidId(userId) && isOwner(userId);
+      allow list: if false;
+      allow create: if isValidId(userId)
+        && isVerifiedUser()
+        && isOwner(userId)
+        && isValidUserProfile(incoming(), userId)
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(userId)
+        && isVerifiedUser()
+        && isOwner(userId)
+        && isValidUserProfile(incoming(), userId)
+        && incoming().uid == existing().uid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'photoURL', 'updatedAt']);
+      allow delete: if isValidId(userId) && isOwner(userId);
+
+      match /chats/{chatId} {
+        allow get: if isValidId(userId) && isValidId(chatId) && isOwner(userId);
+        allow list: if isValidId(userId) && isOwner(userId) && resource.data.userId == request.auth.uid;
+        allow create: if isValidId(userId)
+          && isValidId(chatId)
+          && isVerifiedUser()
+          && isOwner(userId)
+          && isValidChatSession(incoming(), userId)
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time;
+        allow update: if isValidId(userId)
+          && isValidId(chatId)
+          && isVerifiedUser()
+          && isOwner(userId)
+          && isValidChatSession(incoming(), userId)
+          && incoming().userId == existing().userId
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && (
+            incoming().diff(existing()).affectedKeys().hasOnly(['title', 'updatedAt']) ||
+            incoming().diff(existing()).affectedKeys().hasOnly(['model', 'systemPrompt', 'updatedAt']) ||
+            incoming().diff(existing()).affectedKeys().hasOnly(['messageCount', 'updatedAt']) ||
+            incoming().diff(existing()).affectedKeys().hasOnly(['title', 'messageCount', 'updatedAt'])
+          );
+        allow delete: if isValidId(userId) && isValidId(chatId) && isOwner(userId);
+
+        match /messages/{messageId} {
+          allow get: if isValidId(userId) && isValidId(chatId) && isValidId(messageId) && isOwner(userId);
+          allow list: if isValidId(userId) && isValidId(chatId) && isOwner(userId) && resource.data.userId == request.auth.uid;
+          allow create: if isValidId(userId)
+            && isValidId(chatId)
+            && isValidId(messageId)
+            && isVerifiedUser()
+            && isOwner(userId)
+            && isValidChatMessage(incoming(), userId, chatId)
+            && incoming().createdAt == request.time
+            && exists(/databases/$(database)/documents/users/$(userId)/chats/$(chatId));
+          allow update: if false;
+          allow delete: if isValidId(userId) && isValidId(chatId) && isValidId(messageId) && isOwner(userId);
+        }
+      }
+
+      match /imageJobs/{jobId} {
+        allow get: if isValidId(userId) && isValidId(jobId) && isOwner(userId);
+        allow list: if isValidId(userId) && isOwner(userId) && resource.data.userId == request.auth.uid;
+        allow create: if isValidId(userId)
+          && isValidId(jobId)
+          && isVerifiedUser()
+          && isOwner(userId)
+          && isValidImageJob(incoming(), userId)
+          && incoming().status in ['queued', 'processing']
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time;
+        allow update: if isValidId(userId)
+          && isValidId(jobId)
+          && isVerifiedUser()
+          && isOwner(userId)
+          && isValidImageJob(incoming(), userId)
+          && incoming().userId == existing().userId
+          && incoming().prompt == existing().prompt
+          && incoming().model == existing().model
+          && incoming().aspectRatio == existing().aspectRatio
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && existing().status in ['queued', 'processing']
+          && (
+            (incoming().status == 'processing' && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt'])) ||
+            (incoming().status == 'completed' && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'thumbnailDataUrl', 'updatedAt'])) ||
+            (incoming().status == 'failed' && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'errorMessage', 'updatedAt']))
+          );
+        allow delete: if isValidId(userId) && isValidId(jobId) && isOwner(userId);
+      }
+
+      match /downloadJobs/{jobId} {
+        allow get: if isValidId(userId) && isValidId(jobId) && isOwner(userId);
+        allow list: if isValidId(userId) && isOwner(userId) && resource.data.userId == request.auth.uid;
+        allow create: if isValidId(userId)
+          && isValidId(jobId)
+          && isVerifiedUser()
+          && isOwner(userId)
+          && isValidDownloadJob(incoming(), userId)
+          && incoming().createdAt == request.time;
+        allow update: if false;
+        allow delete: if isValidId(userId) && isValidId(jobId) && isOwner(userId);
+      }
+
+      match /animeBookmarks/{animeId} {
+        allow get: if isValidId(userId) && isValidId(animeId) && isOwner(userId);
+        allow list: if isValidId(userId) && isOwner(userId) && resource.data.userId == request.auth.uid;
+        allow create: if isValidId(userId)
+          && isValidId(animeId)
+          && isVerifiedUser()
+          && isOwner(userId)
+          && isValidAnimeBookmark(incoming(), userId)
+          && incoming().createdAt == request.time;
+        allow update: if false;
+        allow delete: if isValidId(userId) && isValidId(animeId) && isOwner(userId);
+      }
+    }
+  }
+}

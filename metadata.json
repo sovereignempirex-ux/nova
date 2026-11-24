@@ -1,0 +1,8 @@
+{
+  "name": "nova",
+  "description": "NOVA is a modern creative and developer platform within the Vanitas ecosystem featuring AI Studio, Image Studio, Image Enhancer, Multi-Source Search, Media Downloader, and Anime Hub.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
